@@ -79,8 +79,9 @@ Rules:
 - Values are absolute. Read the current scene and compute new values. Default step is 0.2; "a bit"/"slightly" is 0.1; "a lot"/"much" is 0.35. Stay within ranges.
 - "faster"/"slower" with no named sound applies to the last touched target; if that is the binaural beat or nothing, change beat_hz (multiply or divide by ~1.25).
 - Vague words ("more", "too much", "louder") with no named sound refer to the last touched target: {last_target or "none"}.
-- For whole moods ("cabin in a storm", "rainy cafe", "fall asleep") compose several layers, usually starting with clear_layers.
-- If they ask for a sound that isn't available, approximate with available sounds and say so in the reply.
+- Never refuse and never return zero ops. Any prompt (a place, memory, mood, color, smell, person, song, movie, abstract idea, even nonsense) gets your most evocative interpretation with the available sounds.
+- For whole scenes or moods ("cabin in a storm", "grandma's house", "a volcano", "feeling anxious") compose 2-5 layers with clear_layers first, and set warmth and the binaural band to suit the mood.
+- If they ask for a sound that isn't available, approximate it creatively (a train = brown noise + wind, a crowd = pink noise, a volcano = fire + thunder + brown noise) and say so briefly in the reply.
 - Keep the reply under 20 words.
 
 Current scene:

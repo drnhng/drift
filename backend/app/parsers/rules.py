@@ -8,6 +8,7 @@ much") against the last thing the user touched.
 
 import re
 
+from app.parsers import vibes
 from app.parsers.base import Interpretation
 from app.scene import (
     BINAURAL_BANDS,
@@ -30,7 +31,7 @@ SOUND_ALIASES: list[tuple[str, str]] = [
     (r"white ?noise", "white_noise"),
     (r"pink ?noise", "pink_noise"),
     (r"brown(ian)? ?noise", "brown_noise"),
-    (r"rain(fall|drops?)?|drizzle|downpour", "rain"),
+    (r"rain(y|ing|fall|drops?)?|drizzle|downpour", "rain"),
     (r"thunder(storm)?|lightning|rumbles?", "thunder"),
     (r"wind|breeze|gusts?|gale", "wind"),
     (r"ocean|waves?|sea|surf|beach sounds?", "ocean"),
@@ -72,6 +73,8 @@ STRONGER = r"heavier|stronger|harder|intense|denser|thicker|bigger|brighter"
 WEAKER = r"lighter|gentler|weaker|calmer|lighter|thinner|smaller|duller|softer sounding"
 FASTER = r"faster|quicker|speed (it )?up|more often|frequent"
 SLOWER = r"slower|slow (it )?down|less often|lazier"
+_EDIT_PATTERNS = [REMOVE, ADD, CLEAR, LOUDER, QUIETER, STRONGER, WEAKER, FASTER, SLOWER, BINAURAL_WORDS]
+EDIT_WORDS = "|".join(_EDIT_PATTERNS)
 WARMER = r"warmer|cozier|cosier|muffled|darker|mellow"
 BRIGHTER_MIX = r"crisper|clearer|less muffled"
 
@@ -264,19 +267,46 @@ def _handle_sound(clause: str, sound: str, step: float, pan: float | None, b: _B
         b.emit(AddLayer(sound=sound, **updates))
     elif updates:
         b.emit(AdjustLayer(sound=sound, **updates))
-    elif _has(ADD, clause) or _has(LOUDER, clause):
+    else:
+        # Naming a sound that's already playing ("make it thunder") brings it forward.
         b.emit(AdjustLayer(sound=sound, volume=_clamp(b.layer_value(sound, "volume") + step)))
 
 
 def parse(text: str, scene: Scene, last_target: str | None = None) -> Interpretation:
     normalized = re.sub(r"[^a-z0-9.,;' ]+", " ", text.lower()).strip()
+
+    # Descriptions of a place or mood ("rainy night in a cyberpunk city") become a whole
+    # blended scene, as long as they aren't phrased as an edit ("add", "louder", "remove"...).
+    matched = vibes.match_vibes(normalized)
+    if matched and not _has(EDIT_WORDS, normalized):
+        ops = vibes.blend(matched, _find_sounds(normalized))
+        return Interpretation(ops=ops, reply=f"My take on \"{text.strip()}\": {_describe(ops)}.")
+
     builder = _Builder(scene, last_target)
 
     for clause in _split_clauses(normalized) or [normalized]:
         _handle_clause(clause, builder)
 
-    if not builder.ops:
+    if builder.ops:
+        return Interpretation(ops=builder.ops, reply="; ".join(builder.notes))
+
+    # No direct command: treat the prompt as a place, mood or memory and build a scene for it.
+    matched = vibes.match_vibes(normalized)
+    if matched:
+        ops = vibes.blend(matched)
+        return Interpretation(ops=ops, reply=f"My take on \"{text.strip()}\": {_describe(ops)}.")
+
+    if not scene.layers:
+        ops = vibes.blend([vibes.FALLBACK])
         return Interpretation(
-            reply="I didn't catch that. Try \"add rain\", \"make the fire louder\", \"slower\", or \"cabin in a storm\".",
+            ops=ops,
+            reply=f"I don't have an exact match, so here's a soft starting point ({_describe(ops)}). Tell me what to change.",
         )
-    return Interpretation(ops=builder.ops, reply="; ".join(builder.notes))
+    return Interpretation(
+        reply="I'm not sure how that should sound. Try describing a place or a mood, or name a sound to change.",
+    )
+
+
+def _describe(ops: list[Op]) -> str:
+    names = [SOUND_CATALOG[op.sound]["label"].lower() for op in ops if isinstance(op, AddLayer)]
+    return ", ".join(names[:-1]) + f" and {names[-1]}" if len(names) > 1 else "".join(names)

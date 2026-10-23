@@ -70,11 +70,33 @@ def test_clear():
     assert scene.layers == []
 
 
-@pytest.mark.parametrize("text", ["add a distant train", "hello"])
-def test_unknown_returns_help(text):
-    result = parse(text, Scene())
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("make it feel like grandmas house", "fire"),
+        ("make it feel like grandma's house", "fire"),
+        ("make it volcano", "thunder"),
+        ("floating in space", "drone"),
+        ("a distant train", "brown_noise"),
+        ("rainy night in a cyberpunk city", "rain"),
+        ("I'm feeling overstimulated", "brown_noise"),
+    ],
+)
+def test_places_and_moods_build_a_scene(text, expected):
+    scene, _ = run(text)
+    assert scene.layer(expected) is not None
+    assert parse(text, Scene()).reply.startswith("My take")
+
+
+def test_unrecognized_prompt_on_empty_scene_still_plays_something():
+    result = parse("asdf qwerty", Scene())
+    assert result.ops
+    assert "starting point" in result.reply
+
+
+def test_unrecognized_prompt_keeps_existing_scene():
+    result = parse("asdf qwerty", Scene(layers=[Layer(sound="rain")]))
     assert result.ops == []
-    assert "Try" in result.reply
 
 
 def test_values_stay_in_range():

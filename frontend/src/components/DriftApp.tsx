@@ -17,9 +17,9 @@ const SUGGESTIONS = [
   "fireplace on the left",
   "slower",
   "cabin in a storm",
-  "remove the thunder",
-  "binaural for focus",
-  "warmer",
+  "grandma's house",
+  "floating in space",
+  "I'm overstimulated",
 ];
 
 export function DriftApp() {
